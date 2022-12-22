@@ -1,0 +1,22 @@
+import Aluno from "../models/Aluno.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { createError } from "../utils/error.js";
+
+export const login = async (req, res, next) => {
+    try {
+        const aluno = await Aluno.findOne({ email: req.body.email });
+        if (!aluno) {
+            return next(createError(404, "Aluno não encontrado."));
+        }
+        const senhaValida = await bcrypt.compare(req.body.senha, aluno.senha);
+        if (!senhaValida) {
+            return next(createError(401, "Senha inválida."));
+        }
+        const { senha, ...dados } = aluno._doc; // .doc é onde fica o json com os dados, sem ele puxa o esquema todo
+        const accessToken = jwt.sign({ id: aluno._id, admin: aluno.ativo }, process.env.JWT_SECRET, { expiresIn: "1h" }); // chave de ativação do seu token
+        res.cookie("accessToken", accessToken, { httpOnly: true }).status(200).json(dados);
+    } catch (error) {
+        next(error);
+    }
+};
